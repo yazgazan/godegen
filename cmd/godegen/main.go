@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -24,6 +26,7 @@ type Configuration struct {
 	Template string `flag:"tpl,require"`
 
 	OutputFile string `flag:"out,require"`
+	OutputSHA  bool   `usage:"print SHA1 of the generated code instead of writing to -out"`
 
 	Args RigMap
 }
@@ -111,33 +114,49 @@ func main() {
 	b := buf.Bytes()
 	b = bytes.Replace(b, []byte(importsPlaceholder), []byte(imports.Statement()), 1)
 
-	f, err := os.Create(c.OutputFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	_, err = f.Write(b)
-	f.Close()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	gofmt := exec.Command("gofmt", "-s", "-w", c.OutputFile)
-	gofmt.Stdout = os.Stdout
+	buf = bytes.NewBuffer(b)
+	bufOut := &bytes.Buffer{}
+	gofmt := exec.Command("gofmt", "-s")
+	gofmt.Stdin = buf
+	gofmt.Stdout = bufOut
 	gofmt.Stderr = os.Stderr
 	err = gofmt.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error running `gofmt -s -w %q`: %v\n", c.OutputFile, err)
+		fmt.Fprintf(os.Stderr, "Error running `gofmt -s %q`: %v\n", c.OutputFile, err)
+		bufOut = bytes.NewBuffer(b)
 	}
+	b = bufOut.Bytes()
 
-	goimports := exec.Command("goimports", "-w", "-local", targetPkg.Module.Path, c.OutputFile)
-	goimports.Stdout = os.Stdout
+	buf = bufOut
+	bufOut = &bytes.Buffer{}
+	goimports := exec.Command("goimports", "-local", targetPkg.Module.Path)
+	goimports.Stdin = buf
+	goimports.Stdout = bufOut
 	goimports.Stderr = os.Stderr
 	err = goimports.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error running `goimports -w -local %q %q`: %v\n", targetPkg.Module.Path, c.OutputFile, err)
+		fmt.Fprintf(os.Stderr, "Error running `goimports -local %q %q`: %v\n", targetPkg.Module.Path, c.OutputFile, err)
+		bufOut = bytes.NewBuffer(b)
+	}
+
+	if c.OutputSHA {
+		sha1Sum := sha1.Sum(bufOut.Bytes()) //nolint:gosec
+		absFpath, _ := filepath.Abs(c.OutputFile)
+		fmt.Printf("%x  %s\n", sha1Sum, absFpath)
+		return
+	}
+
+	f, err := os.Create(c.OutputFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
+		os.Exit(1)
+	}
+
+	_, err = io.Copy(f, bufOut)
+	f.Close()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing output file: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Fprintf(os.Stdout, "wrote %s\n", c.OutputFile)
