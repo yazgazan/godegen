@@ -85,6 +85,9 @@ func main() {
 		"Args": func() RigMap {
 			return c.Args
 		},
+		"TemplateFilename": func() string {
+			return c.Template
+		},
 	})
 
 	tpl, err = tpl.ParseFiles(c.Template)
