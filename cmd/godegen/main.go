@@ -28,6 +28,8 @@ type Configuration struct {
 	OutputFile string `flag:"out,require"`
 	OutputSHA  bool   `usage:"print SHA1 of the generated code instead of writing to -out"`
 
+	GoimportsVersion string
+
 	Args RigMap
 }
 
@@ -35,6 +37,8 @@ var targetSelectorRegexp = regexp.MustCompile("^(\"([^\"]+)\"\\.)?(.+)$")
 
 func main() {
 	c := Configuration{
+		GoimportsVersion: "v0.1.9",
+
 		Args: RigMap{},
 	}
 
@@ -132,7 +136,7 @@ func main() {
 
 	buf = bufOut
 	bufOut = &bytes.Buffer{}
-	goimports := exec.Command("goimports", "-local", targetPkg.Module.Path)
+	goimports := exec.Command("go", "run", "golang.org/x/tools/cmd/goimports@"+c.GoimportsVersion, "-local", targetPkg.Module.Path)
 	goimports.Stdin = buf
 	goimports.Stdout = bufOut
 	goimports.Stderr = os.Stderr
