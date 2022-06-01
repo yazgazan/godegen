@@ -115,3 +115,7 @@ type Arg struct {
 func (a Arg) TypeString() string {
 	return a.imports.Type(a.typ.Type())
 }
+
+func (a Arg) TypeCanonical() string {
+	return a.imports.TypeCanonical(a.typ.Type())
+}
