@@ -50,7 +50,20 @@ func main() {
 
 	outPkgPath := filepath.Dir(c.OutputFile)
 
-	outPkg, err := godegen.Package(outPkgPath, packages.NeedTypes, packages.NeedImports, packages.NeedName, packages.NeedModule)
+	outPkg, err := godegen.Package(
+		outPkgPath,
+		packages.NeedName,
+		packages.NeedFiles,
+		packages.NeedCompiledGoFiles,
+		packages.NeedImports,
+		packages.NeedDeps,
+		packages.NeedExportsFile,
+		packages.NeedTypes,
+		packages.NeedSyntax,
+		packages.NeedTypesInfo,
+		packages.NeedTypesSizes,
+		packages.NeedModule
+	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading destination package: %v\n", err)
 		os.Exit(1)
