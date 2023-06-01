@@ -62,7 +62,7 @@ func main() {
 		packages.NeedSyntax,
 		packages.NeedTypesInfo,
 		packages.NeedTypesSizes,
-		packages.NeedModule
+		packages.NeedModule,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading destination package: %v\n", err)
