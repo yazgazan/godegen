@@ -7,19 +7,47 @@ import (
 )
 
 type Struct struct {
-	Name string
-	typ  *types.Struct
+	Name  string
+	typ   *types.Struct
+	named *types.Named
 
 	imports *Imports
 }
 
 func NewStruct(imports *Imports, name string, obj types.Object) Struct {
+	named, _ := obj.Type().(*types.Named)
 	return Struct{
-		Name: name,
-		typ:  UnderlyingType(obj).(*types.Struct),
+		Name:  name,
+		typ:   UnderlyingType(obj).(*types.Struct),
+		named: named,
 
 		imports: imports,
 	}
+}
+
+func (st Struct) Methods() []Method {
+	if st.named == nil {
+		return nil
+	}
+
+	mm := make([]Method, 0, st.named.NumMethods())
+
+	for i := 0; i < st.named.NumMethods(); i++ {
+		m := st.named.Method(i)
+		mm = append(mm, Method{
+			Name: m.Name(),
+			fn:   m,
+			typ:  m.Type().(*types.Signature),
+
+			imports: st.imports,
+		})
+	}
+
+	sort.Slice(mm, func(i, j int) bool {
+		return strings.Compare(mm[i].Name, mm[j].Name) < 0
+	})
+
+	return mm
 }
 
 func (st Struct) Fields() []Field {

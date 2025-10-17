@@ -12,9 +12,9 @@ type Type struct {
 	imports *Imports
 }
 
-func (t Type) Struct() Struct {
+func (t Type) Struct() (Struct, error) {
 	if t.Kind != KindStruct {
-		panic(fmt.Errorf("%q is not a struct (kind %q)", t.typ.String(), t.Kind))
+		return Struct{}, fmt.Errorf("%q is not a struct (kind %q)", t.typ.String(), t.Kind)
 	}
 
 	return Struct{
@@ -22,12 +22,12 @@ func (t Type) Struct() Struct {
 		typ:  Underlying(t.typ).(*types.Struct),
 
 		imports: t.imports,
-	}
+	}, nil
 }
 
-func (t Type) Interface() Interface {
+func (t Type) Interface() (Interface, error) {
 	if t.Kind != KindInterface {
-		panic(fmt.Errorf("%q is not an interface (kind %q)", t.typ.String(), t.Kind))
+		return Interface{}, fmt.Errorf("%q is not an interface (kind %q)", t.typ.String(), t.Kind)
 	}
 
 	return Interface{
@@ -35,5 +35,5 @@ func (t Type) Interface() Interface {
 		typ:  Underlying(t.typ).(*types.Interface),
 
 		imports: t.imports,
-	}
+	}, nil
 }

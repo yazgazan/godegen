@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"go/types"
-
-	"golang.org/x/tools/go/packages"
 )
 
 type Imports struct {
@@ -22,22 +20,6 @@ func NewImports(pkg *types.Package) *Imports {
 	}
 }
 
-func (imports *Imports) Add(pkgPath string) string {
-	if id, ok := imports.m[pkgPath]; ok {
-		return id
-	}
-
-	pkg, err := Package(pkgPath, packages.NeedName)
-	if err != nil {
-		panic(err)
-	}
-
-	id := fmt.Sprintf("%sGodegen%x", pkg.Name, imports.index)
-	imports.m[pkgPath] = id
-
-	return id
-}
-
 func (imports *Imports) AddWithName(pkgPath, pkgName string) string {
 	if id, ok := imports.m[pkgPath]; ok {
 		return id
@@ -51,9 +33,7 @@ func (imports *Imports) AddWithName(pkgPath, pkgName string) string {
 }
 
 func (imports *Imports) Type(typ types.Type) string {
-	var (
-		pkgPath, pkgName string
-	)
+	var pkgPath, pkgName string
 
 	elem, prefix := Elem(typ)
 
@@ -65,21 +45,19 @@ func (imports *Imports) Type(typ types.Type) string {
 
 		pkgPath = pkg.Path()
 		pkgName = pkg.Name()
-		return ""
+		if pkgPath == "" {
+			return ""
+		}
+
+		pkgId := imports.AddWithName(pkgPath, pkgName)
+		return pkgId
 	})
 	typName := buf.String()
-	if pkgPath == "" {
-		return prefix + typName
-	}
-
-	pkgId := imports.AddWithName(pkgPath, pkgName)
-	return prefix + pkgId + "." + typName
+	return prefix + typName
 }
 
 func (imports *Imports) TypeCanonical(typ types.Type) string {
-	var (
-		pkgPath string
-	)
+	var pkgPath string
 
 	elem, prefix := Elem(typ)
 

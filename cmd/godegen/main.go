@@ -18,6 +18,7 @@ import (
 
 	"github.com/Pimmr/rig"
 	"github.com/yazgazan/godegen"
+	"github.com/yazgazan/godegen/utils"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -57,7 +58,7 @@ func main() {
 		packages.NeedCompiledGoFiles,
 		packages.NeedImports,
 		packages.NeedDeps,
-		packages.NeedExportsFile,
+		packages.NeedExportFile,
 		packages.NeedTypes,
 		packages.NeedSyntax,
 		packages.NeedTypesInfo,
@@ -82,19 +83,20 @@ func main() {
 	}
 	targetName := targetParts[0][3]
 
-	tpl := template.New("main")
+	basename := filepath.Base(c.Template)
+	tpl := template.New(basename)
 
 	imports := godegen.NewImports(targetPkg.Types)
 
 	var importsPlaceholder string
 	tpl = tpl.Funcs(template.FuncMap{
-		"Imports": func() string {
+		"Imports": func() (string, error) {
 			if importsPlaceholder != "" {
-				panic(errors.New("Imports() already called"))
+				return "", errors.New("Imports() already called")
 			}
 
 			importsPlaceholder = strconv.FormatUint(rand.Uint64(), 36)
-			return importsPlaceholder
+			return importsPlaceholder, nil
 		},
 		"Export": func(s string) string {
 			return strings.Title(s)
@@ -105,6 +107,15 @@ func main() {
 		"TemplateFilename": func() string {
 			return c.Template
 		},
+		"strings": func() utils.Strings {
+			return utils.Strings{}
+		},
+		"map": func() utils.Map {
+			return utils.Map{}
+		},
+		"slice": func() utils.Slice {
+			return utils.Slice{}
+		},
 	})
 
 	tpl, err = tpl.ParseFiles(c.Template)
@@ -112,7 +123,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error loading template: %v\n", err)
 		os.Exit(1)
 	}
-	tpl = tpl.Templates()[0]
 
 	targetObj := targetPkg.Types.Scope().Lookup(targetName)
 
@@ -185,8 +195,7 @@ func main() {
 type RigMap map[string]string
 
 func (m RigMap) Set(s string) error {
-	ss := strings.Split(s, ";")
-	for _, v := range ss {
+	for v := range strings.SplitSeq(s, ";") {
 		if strings.TrimSpace(v) == "" {
 			continue
 		}

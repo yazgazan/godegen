@@ -72,6 +72,37 @@ func (m Method) Args() []Arg {
 	return aa
 }
 
+func (m Method) Arg(name string) (Arg, error) {
+	params := m.typ.Params()
+
+	for i := 0; i < params.Len(); i++ {
+		v := params.At(i)
+		if v.Name() == name {
+			return Arg{
+				Name: v.Name(),
+				typ:  v,
+
+				imports: m.imports,
+			}, nil
+		}
+	}
+
+	return Arg{}, fmt.Errorf("no argument named %q found", name)
+}
+
+func (m Method) HasArg(name string) bool {
+	params := m.typ.Params()
+
+	for i := 0; i < params.Len(); i++ {
+		v := params.At(i)
+		if v.Name() == name {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (m Method) Returns() []Arg {
 	rets := m.typ.Results()
 	aa := make([]Arg, 0, rets.Len())
@@ -89,10 +120,14 @@ func (m Method) Returns() []Arg {
 	return aa
 }
 
-func (m Method) Return(i int) Arg {
+func (m Method) HasReturns() bool {
+	return m.typ.Results().Len() > 0
+}
+
+func (m Method) Return(i int) (Arg, error) {
 	rets := m.typ.Results()
 	if rets.Len() == 0 {
-		panic(fmt.Errorf("no returns for method %q", m.Name))
+		return Arg{}, fmt.Errorf("no returns for method %q", m.Name)
 	}
 
 	r := rets.At(0)
@@ -101,7 +136,7 @@ func (m Method) Return(i int) Arg {
 		typ:  r,
 
 		imports: m.imports,
-	}
+	}, nil
 }
 
 type Arg struct {
@@ -118,4 +153,50 @@ func (a Arg) TypeString() string {
 
 func (a Arg) TypeCanonical() string {
 	return a.imports.TypeCanonical(a.typ.Type())
+}
+
+func (a Arg) IsStruct() bool {
+	typ := a.typ.Type()
+	if p, ok := typ.(*types.Pointer); ok {
+		typ = p.Elem()
+	}
+
+	_, ok := Underlying(typ).(*types.Struct)
+
+	return ok
+}
+
+func (a Arg) IsInterface() bool {
+	typ := a.typ.Type()
+
+	_, ok := Underlying(typ).(*types.Interface)
+
+	return ok
+}
+
+func (a Arg) Struct() Struct {
+	typ := a.typ.Type()
+	if p, ok := typ.(*types.Pointer); ok {
+		typ = p.Elem()
+	}
+
+	named, _ := typ.(*types.Named)
+	return Struct{
+		Name:  a.Name,
+		typ:   Underlying(typ).(*types.Struct),
+		named: named,
+
+		imports: a.imports,
+	}
+}
+
+func (a Arg) Interface() Interface {
+	typ := a.typ.Type()
+
+	return Interface{
+		Name: a.Name,
+		typ:  Underlying(typ).(*types.Interface),
+
+		imports: a.imports,
+	}
 }
